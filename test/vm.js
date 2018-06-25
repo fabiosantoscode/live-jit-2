@@ -31,5 +31,30 @@ describe('vm', () => {
       vm.step(state, ['PRINT', 43])
       assert.equal(printedValue, 43)
     })
+    it('INCRBY', () => {
+      const state = {
+        variables: {
+          a: 10
+        }
+      }
+      vm.step(state, ['INCRBY', 'a', 5])
+      assert.equal(state.variables.a, 15)
+    })
+    it('LESS_THAN_OR_GOTO', () => {
+      const state = {
+        variables: {
+          a: 42,
+          b: 43
+        },
+        pc: 1
+      }
+      vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 100])
+      assert.equal(state.pc, 1)
+
+      state.variables.a = 44
+
+      vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 100])
+      assert.equal(state.pc, 98)
+    })
   })
 })
