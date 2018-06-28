@@ -2,6 +2,17 @@
 
 const assert = require('assert').strict
 const vm = require('../lib/vm')
+const { program1, count } = require('./fixtures')
+
+function getStdout(program) {
+  var stdout = []
+
+  vm.run(program, {
+    print: (msg) => stdout.push(msg)
+  })
+
+  return stdout.join('\n') + '\n'
+}
 
 describe('vm', () => {
   describe('single instructions', () => {
@@ -55,6 +66,27 @@ describe('vm', () => {
 
       vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 100])
       assert.equal(state.pc, 98)
+    })
+  })
+  describe('whole programs', () => {
+    it('simple program', () => {
+      assert.equal(
+        getStdout('print 123'),
+        '123\n'
+      )
+    })
+    it('more complex program', () => {
+      assert.equal(
+        getStdout(program1),
+        '10\n'
+      )
+    })
+    it('count numbers', function() {
+      this.timeout(20 * 1000)
+      assert.equal(
+        getStdout(count),
+        '5000000\n'
+      )
     })
   })
 })
