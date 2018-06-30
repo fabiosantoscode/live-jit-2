@@ -72,16 +72,19 @@ describe('vm', () => {
     const HOT_PC = 10
     const makeState = tracingMode => ({
       isJit: true,
+      print: () => null,
       tracingMode,
+      recordStartPc: 0,
       pc: 1,
       variables: {},
-      pcTemperature: {}
+      pcTemperature: {},
+      record: []
     })
     describe('monitoring', () => {
       it('increments pcTemperature when given a backwards jump', () => {
         const state = makeState('monitoring')
 
-        vm.step(state, ['GOTO', 0])
+        vm.step(state, ['GOTO', 1])
 
         assert.equal(state.pcTemperature[0], 1)
       })
@@ -90,11 +93,11 @@ describe('vm', () => {
 
         state.variables.a = 1
         state.variables.b = 2
-        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 0])
+        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 1])
         assert.deepEqual(state.pcTemperature, {})
 
         state.variables.b = 1
-        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 0])
+        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 1])
         assert.deepEqual(state.pcTemperature, { 0: 1 })
       })
       it('goes to "recording" mode when PC is hot', () => {
@@ -102,9 +105,51 @@ describe('vm', () => {
 
         state.pcTemperature[0] = HOT_PC
 
-        vm.step(state, ['GOTO', 0])
+        vm.step(state, ['GOTO', 1])
 
         assert.equal(state.tracingMode, 'recording')
+      })
+    })
+    describe('recording', () => {
+      it('ignores NOPs and jumps', () => {
+        const state = makeState('recording')
+
+        vm.step(state, ['NOP'])
+        vm.step(state, ['GOTO', 1])
+
+        assert.deepEqual(state.record, [])
+      })
+      it('does not go over 100 steps', () => {
+        const state = makeState('recording')
+
+        state.record = new Array(101)
+
+        vm.step(state, ['NOP'])
+
+        assert.equal(state.tracingMode, 'monitoring')
+        assert.deepEqual(state.record, [])
+      })
+      it('records instructions', () => {
+        const state = makeState('recording')
+
+        vm.step(state, ['PRINT', 42])
+
+        assert.deepEqual(state.record, [
+          ['PRINT', 42]
+        ])
+      })
+      it('closes the loop', () => {
+        const state = makeState('recording')
+
+        state.recordStartPc = 10
+
+        state.record = [['PRINT', 42]]
+
+        state.pc = 10
+
+        vm.step(state, ['NOP'])
+
+        assert.equal(state.tracingMode, 'monitoring')
       })
     })
   })
