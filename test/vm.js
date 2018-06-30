@@ -4,12 +4,12 @@ const assert = require('assert').strict
 const vm = require('../lib/vm')
 const { program1, count } = require('./fixtures')
 
-function getStdout(program) {
+function getStdout(program, options = {}) {
   var stdout = []
 
-  vm.run(program, {
+  vm.run(program, Object.assign({
     print: (msg) => stdout.push(msg)
-  })
+  }, options))
 
   return stdout.join('\n') + '\n'
 }
@@ -68,6 +68,46 @@ describe('vm', () => {
       assert.equal(state.pc, 98)
     })
   })
+  describe('single instructions in tracing modes', () => {
+    const HOT_PC = 10
+    const makeState = tracingMode => ({
+      isJit: true,
+      tracingMode,
+      pc: 1,
+      variables: {},
+      pcTemperature: {}
+    })
+    describe('monitoring', () => {
+      it('increments pcTemperature when given a backwards jump', () => {
+        const state = makeState('monitoring')
+
+        vm.step(state, ['GOTO', 0])
+
+        assert.equal(state.pcTemperature[0], 1)
+      })
+      it('knows way around conditional jumps', () => {
+        const state = makeState('monitoring')
+
+        state.variables.a = 1
+        state.variables.b = 2
+        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 0])
+        assert.deepEqual(state.pcTemperature, {})
+
+        state.variables.b = 1
+        vm.step(state, ['LESS_THAN_OR_GOTO', 'a', 'b', 0])
+        assert.deepEqual(state.pcTemperature, { 0: 1 })
+      })
+      it('goes to "recording" mode when PC is hot', () => {
+        const state = makeState('monitoring')
+
+        state.pcTemperature[0] = HOT_PC
+
+        vm.step(state, ['GOTO', 0])
+
+        assert.equal(state.tracingMode, 'recording')
+      })
+    })
+  })
   describe('whole programs', () => {
     it('simple program', () => {
       assert.equal(
@@ -84,7 +124,7 @@ describe('vm', () => {
     it('count numbers', function() {
       this.timeout(20 * 1000)
       assert.equal(
-        getStdout(count),
+        getStdout(count, { isJit: true }),
         '5000000\n'
       )
     })
