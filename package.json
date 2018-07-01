@@ -14,5 +14,9 @@
   "license": "ISC",
   "devDependencies": {
     "mocha": "^5.2.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.10",
+    "streamed-tcc-goodness": "0.0.1"
   }
 }
